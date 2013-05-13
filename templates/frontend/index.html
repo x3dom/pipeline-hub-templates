@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div id="hero">
+    <h1>Instant3DHub</h1>
+    <h4>Pipeline Test.</h4>
+</div>
+
+<form action="{{ url_for('frontend.upload') }}" method="POST" enctype="multipart/form-data" autocomplete="off">
+    {% with messages = get_flashed_messages(with_categories=True) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} fade in" data-alert="alert">
+                    {% if category == 'error' %}<strong>Oh snap!</strong>{% endif%}
+                    {{ message }}
+                </div>
+            {% endfor %}
+          {% endif %}
+    {% endwith %}
+
+    <fieldset>
+        <legend>Upload your 3D model <a class="toggler" data-toggle-on="Hide help" data-toggle-off="Show help" href="#file_help">Show help</a></legend>
+
+        <div id="file_help" class="help">
+            <h4>Supported formats</h4>
+            <p>The following file formats are currently supported: 
+             {% for ext,desc in config['SUPPORTED_FORMATS'] %}
+                    <span class="label"><abbr title="{{ desc }}">{{ ext }}</abbr></span>
+                {% endfor %}
+            </p>
+
+            <h4>Loading from URL</h4>
+            <p>The last part of the URL needs to be a valid filename. The system does not handle streaming or extensionless endpoints by looking up mime types or magic chars. Please prepare your data like this</p>
+
+<h5>Good URLs</h5>
+<pre>
+http://somplace.com/models/models.zip
+http://somplace.com/models/model.ply
+http://somplace.com/models/model.obj
+</pre>
+
+<h5>Bad URLs (even if sent with correct mimetype)</h5>
+<pre>
+http://somplace.com/models/1/obj
+http://somplace.com/models/1/view?format=zip
+http://somplace.com/models/2/index.html
+http://somplace.com/model.list#zip
+</pre>
+
+            <h4>Textured models</h4>
+            <p>If you need to upload textures with your model, you need to prepare and upload a ZIP file which also contains your textures. Directory names and texture files as well as the refenreces in your models are not touched during conversion and simply copied over. So are any other files provided in the ZIP package. For more on uploading ZIP files read the next section.</p>
+
+            <h4>ZIP files</h4>
+            <p>You can also upload multiple models in one zip file. In order to discover the models in the zip file, you need to <strong>store them at the root level</strong> of the Zip archive. This is also true for the metadata which you can also put in the archive. The meatadata filename needs to be exactly like your model filename except for the extension.  Make sure you only have relative paths in you Zip file and no back references. Things like <code>z/../../../etc/passwd</code> or similar are filtered out. Nested archives are not processed.</p>
+
+            <p><span class="label label-info">Heads up!</span> Conversion settingsare the same for all models in one zipfile.</p>
+
+            <h5>Here's how a good zipfile could look:</h5>
+
+            
+<pre>
+my_models.zip:
+    vase.ply                             &lt;- the model at root level
+    vase.json                            &lt;- Metadata
+    vase_textures/arbitrary.jpg          &lt;- Textures in subdirs
+    vase_textures/texture.jpg            
+    skull.ply
+    skull.xml
+    skull_textures/arbitrary.jpg
+    skull_textures/texture.jpg
+</pre>
+
+<h5>Don't do this:</h5>
+<pre>
+my_models.zip:
+    mymodels/vase.ply
+    mymodels/vase.json
+    vase_textures/arbitrary.jpg
+    vase_textures/texture.jpg
+    other/project/skull.ply
+    other/project/skull.xml
+    /home/pete/project/skull_textures/arbitrary.jpg
+    ../../skull_textures/texture.jpg
+</pre>
+        </div>
+
+            <p>Your upload must not exceed {{ config['MAX_CONTENT_LENGTH'] / 1024 /1024 }}MB. In case you are uploading a big file and have a slow internet connection, the browser will appear to have stalled. This is not the case, please be patient and wait for the upload to complete.</p>
+
+            <div id="input_group_file" class="grouping">
+                <input type="file" name="file">
+
+                <span class="help-block">You can <a href="#" id="toggle_input_file">use a URL</a> instead of a file.</span>
+            </div>
+            
+            <div id="input_group_url" class="grouping hide">
+                <input type="text" name="url" maxlength="254" style="width:90%" placeholder="http://">
+                <span class="help-block">No thanks, I prefer to <a href="#" id="toggle_input_url">upload a file?</a></span>
+            </div>
+    </fieldset>   
+
+    <fieldset>
+        <legend>Select a template</legend>
+        <label class="radio">
+            <input type="radio" name="template" value="basic" id="radio-basic" checked> Basic Viewer
+        </label>
+        <label class="radio">
+            <input type="radio" name="template" value="standard" id="radio-standard"> Standard Viewer
+        </label>
+        <label class="radio">
+            <input type="radio" name="template" value="fullsize" id="radio-fullsize"> Fullsize Viewer
+        </label>
+        <label class="radio">
+            <input type="radio" name="template" value="metadata" id="radio-meta"> Metadata Browser <small>(xml metadata)</small>
+        </label>
+        <label class="radio">
+            <input type="radio" name="template" value="radianceScaling" id="radio-radiance"> Radiance Scaling
+        </label>
+        <label class="radio">
+            <input type="radio" name="template" value="walkthrough" id="radio-walkthrough"> Walk Through
+        </label>
+    </fieldset>
+
+    <fieldset id="meta-upload">
+        <legend>Upload a metadata file</legend>
+        <p>If you choose the "Fullsize Viewer" or "Viewer with Metadata Browser" template, you can attach metadata to your model. Supported formats are JSON (<code>file.json</code>) and XML (<code>file.xml</code>) for "Metadata Browser".</p>
+        <p><span class="label label-info">Heads up!</span> In case you upload a ZIP archive, you need to provide the metadata within your archive. See help above for more info. I you are using a URI to download a model, the metadata attachment is ignored.</p>
+        <input type="file" name="metadata">
+    </fieldset>  
+    
+
+    <fieldset>
+        <legend>Start sharing</legend>
+        <p>Everything set? Then you are ready to upload your model and start sharing. After hitting the convert button, you will be taken to a new page which provides a download link and a preview link to your model.</p>
+
+
+        <p><input type="submit" value="Convert and Share" class="btn btn-primary" data-loading-text="Processing..." onclick="$(this).button('loading')" >
+        </p>
+
+        <p><strong>Note:</strong> The converted model files will be deleted from our servers a couple of hours after the conversion took place. Make sure you download the files to your computer as soon as possible.</p>
+
+
+    </fieldset>
+
+        
+</form>
+
+
+
+
+{% endblock %}
